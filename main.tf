@@ -20,11 +20,6 @@ module "vpc" {
   tags = {
     Name = "eks-vpc"
   }
-
-  lifecycle {
-    prevent_destroy = false
-    ignore_changes  = [tags]
-  }
 }
 
 # EKS Cluster
@@ -44,16 +39,12 @@ module "eks" {
       instance_types = ["t3.micro"]
       min_size       = 1
       max_size       = 2
-      desired_size   = 1
+      desired_size   = 2
     }
   }
 
   tags = {
     Environment = "dev"
     Terraform   = "true"
-  }
-
-  lifecycle {
-    prevent_destroy = false
   }
 }
