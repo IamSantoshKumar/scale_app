@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'app/**'
+      - 'k8s/**'
       - '.github/workflows/app.yaml'
   workflow_dispatch:
 
@@ -26,17 +27,23 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to ECR
+      - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build & Push Docker Image
+      - name: Build & Push Docker Image to ECR
         run: |
           IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_NAME }}:latest"
           docker build -t $IMAGE_URI ./app
           docker push $IMAGE_URI
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
 
-      - name: Update K8s Deployment
+      - name: Update kubeconfig for EKS
         run: |
           aws eks update-kubeconfig --region $AWS_REGION --name demo-eks-cluster
-          kubectl set image deployment/flask-app flask=$IMAGE_URI
+
+      - name: Apply K8s manifests
+        run: |
+          sed -i "s|<ECR_IMAGE_URI>|$IMAGE_URI|g" k8s/deployment.yaml
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
