@@ -1,0 +1,42 @@
+name: Deploy Flask App to EKS
+
+on:
+  push:
+    paths:
+      - 'app/**'
+      - '.github/workflows/app.yaml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: eu-north-1
+      ECR_REPO_NAME: flask-hello-world
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & Push Docker Image
+        run: |
+          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_NAME }}:latest"
+          docker build -t $IMAGE_URI ./app
+          docker push $IMAGE_URI
+
+      - name: Update K8s Deployment
+        run: |
+          aws eks update-kubeconfig --region $AWS_REGION --name demo-eks-cluster
+          kubectl set image deployment/flask-app flask=$IMAGE_URI
