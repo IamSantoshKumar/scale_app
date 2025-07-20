@@ -11,7 +11,7 @@ data "aws_vpc" "existing" {
   }
 }
 
-# Create VPC only if not found
+# Create VPC only if not founds
 resource "aws_vpc" "new" {
   count             = length(data.aws_vpc.existing.ids) > 0 ? 0 : 1
   cidr_block        = var.vpc_cidr
